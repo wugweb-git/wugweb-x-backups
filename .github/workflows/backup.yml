@@ -1,0 +1,37 @@
+# Weekly schema + data dump of wugweb-x into this private repo (dumps/).
+name: backup
+on:
+  schedule:
+    - cron: '41 2 * * 0'     # Sundays 02:41 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pg_dump 17 (matches the Supabase server)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get -qq update && sudo apt-get -qq install -y postgresql-client-17 >/dev/null
+      - name: Dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -e
+          D=dumps/$(date -u +%Y-%m-%d); mkdir -p "$D"
+          S="-n core -n docweb -n stayweb -n hrweb -n thinkweb"
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --schema-only $S --no-owner --no-privileges | gzip > "$D/schema.sql.gz"
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --data-only   $S --no-owner | gzip > "$D/data.sql.gz"
+          /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL" -tAc "select bucket_id, name, metadata->>'size' from storage.objects order by 1,2" | gzip > "$D/storage-objects.txt.gz"
+          ls -la "$D"
+      - name: Commit
+        run: |
+          git config user.name "wugweb-backup"
+          git config user.email "admin@wugweb.com"
+          git add dumps
+          git commit -m "Backup $(date -u +%Y-%m-%d)" || echo "No changes"
+          git push
