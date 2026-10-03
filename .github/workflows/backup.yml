@@ -21,7 +21,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          set -e
+          set -euo pipefail
           D=dumps/$(date -u +%Y-%m-%d); mkdir -p "$D"
           S="-n core -n docweb -n stayweb -n hrweb"
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --schema-only $S --no-owner --no-privileges | gzip > "$D/schema.sql.gz"
