@@ -23,7 +23,7 @@ jobs:
         run: |
           set -e
           D=dumps/$(date -u +%Y-%m-%d); mkdir -p "$D"
-          S="-n core -n docweb -n stayweb -n hrweb -n thinkweb"
+          S="-n core -n docweb -n stayweb -n hrweb"
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --schema-only $S --no-owner --no-privileges | gzip > "$D/schema.sql.gz"
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --data-only   $S --no-owner | gzip > "$D/data.sql.gz"
           /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL" -tAc "select bucket_id, name, metadata->>'size' from storage.objects order by 1,2" | gzip > "$D/storage-objects.txt.gz"
